@@ -21,6 +21,7 @@
 typedef struct {
     float sampleRate; // Hz
     float stationaryThreshold; // degrees per second
+    FusionVector stationaryThresholds; // degrees per second, per-axis override if non-zero
     float stationaryPeriod; // seconds
 } FusionBiasSettings;
 

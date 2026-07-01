@@ -2,6 +2,7 @@
 #define BIAS_SETTINGS_H
 
 #include "../../Fusion/Fusion.h"
+#include "NpArray.h"
 #include <Python.h>
 
 typedef struct {
@@ -85,10 +86,26 @@ static int bias_settings_set_stationary_threshold(BiasSettings *self, PyObject *
     return 0;
 }
 
+static PyObject *bias_settings_get_stationary_thresholds(BiasSettings *self) {
+    return np_array_1x3_from(self->settings.stationaryThresholds.array);
+}
+
+static int bias_settings_set_stationary_thresholds(BiasSettings *self, PyObject *value, void *closure) {
+    FusionVector stationary_thresholds;
+
+    if (np_array_1x3_to(stationary_thresholds.array, value) != 0) {
+        return -1;
+    }
+
+    self->settings.stationaryThresholds = stationary_thresholds;
+    return 0;
+}
+
 static PyGetSetDef bias_settings_get_set[] = {
     {"sample_rate", (getter) bias_settings_get_sample_rate, (setter) bias_settings_set_sample_rate, "", NULL},
     {"stationary_period", (getter) bias_settings_get_stationary_period, (setter) bias_settings_set_stationary_period, "", NULL},
     {"stationary_threshold", (getter) bias_settings_get_stationary_threshold, (setter) bias_settings_set_stationary_threshold, "", NULL},
+    {"stationary_thresholds", (getter) bias_settings_get_stationary_thresholds, (setter) bias_settings_set_stationary_thresholds, "", NULL},
     {NULL} /* sentinel */
 };
 

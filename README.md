@@ -89,6 +89,7 @@ The bias algorithm settings are defined by the `FusionBiasSettings` structure an
 |-----------------------|--------------------------------------------------------------------------------------------------|
 | `sampleRate`          | Sample rate in Hz. The default value is 100 Hz.                                                  |
 | `stationaryThreshold` | Stationary detection threshold in degrees per second. The default value is 3 degrees per second. |
+| `stationaryThresholds` | Optional per-axis stationary detection thresholds in degrees per second. A zero axis uses `stationaryThreshold`. |
 | `stationaryPeriod`    | Stationary detection period in seconds. The default value is 3 seconds.                          |
 
 ### Non-volatile memory

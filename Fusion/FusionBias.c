@@ -24,6 +24,7 @@
 const FusionBiasSettings fusionBiasDefaultSettings = {
     .sampleRate = 100.0f,
     .stationaryThreshold = 3.0f,
+    .stationaryThresholds = FUSION_VECTOR_ZERO,
     .stationaryPeriod = 3.0f,
 };
 
@@ -63,10 +64,18 @@ FusionVector FusionBiasUpdate(FusionBias *const bias, FusionVector gyroscope) {
     // Apply gyroscope offset
     gyroscope = FusionVectorSubtract(gyroscope, bias->offset);
 
+    const FusionVector stationaryThresholds = {
+        .axis = {
+            .x = bias->settings.stationaryThresholds.axis.x > 0.0f ? bias->settings.stationaryThresholds.axis.x : bias->settings.stationaryThreshold,
+            .y = bias->settings.stationaryThresholds.axis.y > 0.0f ? bias->settings.stationaryThresholds.axis.y : bias->settings.stationaryThreshold,
+            .z = bias->settings.stationaryThresholds.axis.z > 0.0f ? bias->settings.stationaryThresholds.axis.z : bias->settings.stationaryThreshold,
+        },
+    };
+
     // Reset timer if gyroscope not stationary
-    if ((fabsf(gyroscope.axis.x) > bias->settings.stationaryThreshold) ||
-        (fabsf(gyroscope.axis.y) > bias->settings.stationaryThreshold) ||
-        (fabsf(gyroscope.axis.z) > bias->settings.stationaryThreshold)) {
+    if ((fabsf(gyroscope.axis.x) > stationaryThresholds.axis.x) ||
+        (fabsf(gyroscope.axis.y) > stationaryThresholds.axis.y) ||
+        (fabsf(gyroscope.axis.z) > stationaryThresholds.axis.z)) {
         bias->timer = 0;
         return gyroscope;
     }

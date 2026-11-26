@@ -15,7 +15,10 @@ accelerometer = data[:, 4:7]
 magnetometer = data[:, 7:10]
 
 # Instantiate algorithms
-bias = imufusion.Bias(sample_rate)
+bias = imufusion.Bias()
+
+bias.settings = imufusion.BiasSettings(sample_rate)
+
 ahrs = imufusion.Ahrs()
 
 ahrs.settings = imufusion.AhrsSettings(
@@ -56,7 +59,7 @@ for index in range(len(timestamp)):
     ahrs_flags = ahrs.flags
     flags[index] = np.array(
         [
-            ahrs_flags.initialising,
+            ahrs_flags.startup,
             ahrs_flags.angular_rate_recovery,
             ahrs_flags.acceleration_recovery,
             ahrs_flags.magnetic_recovery,
@@ -84,8 +87,8 @@ axes[0].set_ylabel("Degrees")
 axes[0].grid()
 axes[0].legend()
 
-# Plot initialising flag
-plot_bool(axes[1], timestamp, flags[:, 0], "Initialising")
+# Plot startup flag
+plot_bool(axes[1], timestamp, flags[:, 0], "Startup")
 
 # Plot angular rate recovery flag
 plot_bool(axes[2], timestamp, flags[:, 1], "Angular rate recovery")

@@ -16,17 +16,17 @@ The algorithm is based on the revised AHRS algorithm presented in chapter 7 of [
 
 The algorithm calculates the orientation as the integration of the gyroscope summed with a feedback term. The feedback term is equal to the error in the current measurement of orientation as determined by the other sensors, multiplied by a gain. The algorithm therefore functions as a complementary filter that combines high-pass filtered gyroscope measurements with low-pass filtered measurements from other sensors with a corner frequency determined by the gain. A low gain will 'trust' the gyroscope more and so be more susceptible to drift. A high gain will increase the influence of other sensors and the errors that result from accelerations and magnetic distortions. A gain of zero will ignore the other sensors so that the measurement of orientation is determined by only the gyroscope.
 
-### Initialisation
+### Startup
 
-Initialisation occurs when the algorithm starts for the first time and during angular rate recovery. During initialisation, the acceleration and magnetic rejection features are disabled and the gain is ramped down from 10 to the final value over a 3 second period. This allows the measurement of orientation to rapidly converge from an arbitrary initial value to the value indicated by the sensors.
+Startup occurs when the algorithm starts for the first time and during angular rate recovery. During startup, the acceleration and magnetic rejection features are disabled and the gain is ramped down from 10 to the final value over a 3 second period. This allows the measurement of orientation to rapidly converge from an arbitrary initial value to the value indicated by the sensors.
 
 ### Angular rate recovery
 
-Angular rates that exceed the gyroscope measurement range cannot be tracked and will trigger an angular rate recovery. Angular rate recovery is activated when the angular rate exceeds the 98% of the gyroscope measurement range and will trigger reinitialisation of the algorithm.
+Angular rates that exceed the gyroscope measurement range cannot be tracked and will trigger an angular rate recovery. Angular rate recovery is activated when the angular rate exceeds 98% of the gyroscope measurement range and will trigger a restart of the algorithm.
 
 ### Acceleration rejection
 
-The acceleration rejection feature reduces the errors that result from the accelerations of linear and rotational motion. Acceleration rejection works by calculating an error as the angular difference between the instantaneous measurement of inclination indicated by the accelerometer, and the current measurement of inclination provided by the algorithm output. If the error is greater than a threshold then the accelerometer will be ignored for that algorithm update. This is equivalent to a dynamic gain that deceases as accelerations increase.
+The acceleration rejection feature reduces the errors that result from the accelerations of linear and rotational motion. Acceleration rejection works by calculating an error as the angular difference between the instantaneous measurement of inclination indicated by the accelerometer, and the current measurement of inclination provided by the algorithm output. If the error is greater than a threshold then the accelerometer will be ignored for that algorithm update. This is equivalent to a dynamic gain that decreases as accelerations increase.
 
 Prolonged accelerations risk an overdependency on the gyroscope and will trigger an acceleration recovery. Acceleration recovery activates when the error exceeds the threshold for more than 90% of algorithm updates over a period of *t / (0.1p - 9)*, where *t* is the recovery trigger period and *p* is the percentage of algorithm updates where the error exceeds the threshold. The recovery will remain active until the error exceeds the threshold for less than 90% of algorithm updates over the period *-t / (0.1p - 9)*. The accelerometer will be used by every algorithm update during recovery.
 
@@ -45,7 +45,7 @@ The AHRS algorithm settings are defined by the `FusionAhrsSettings` structure an
 | Setting                 | Description                                                                                                                                                                                                                                                |
 |-------------------------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
 | `convention`            | Earth axes convention (NWU, ENU, or NED).                                                                                                                                                                                                                  |
-| `gain`                  | Determines the influence of the gyroscope relative to other sensors. A value of zero will disable initialisation and the acceleration and magnetic rejection features. A value of 0.5 is appropriate for most applications.                                |
+| `gain`                  | Determines the influence of the gyroscope relative to other sensors. A value of zero will disable startup and the acceleration and magnetic rejection features. A value of 0.5 is appropriate for most applications.                                       |
 | `gyroscopeRange`        | Gyroscope range (in degrees per second). Angular rate recovery will activate if the gyroscope measurement exceeds 98% of this value. A value of zero will disable this feature. The value should be set to the range specified in the gyroscope datasheet. |
 | `accelerationRejection` | Threshold (in degrees) used by the acceleration rejection feature. A value of zero will disable this feature. A value of 10 degrees is appropriate for most applications.                                                                                  |
 | `magneticRejection`     | Threshold (in degrees) used by the magnetic rejection feature. A value of zero will disable the feature. A value of 10 degrees is appropriate for most applications.                                                                                       |
@@ -68,18 +68,33 @@ The AHRS algorithm internal states are defined by the `FusionAhrsInternalStates`
 
 The AHRS algorithm flags are defined by the `FusionAhrsFlags` structure and obtained using the `FusionAhrsGetFlags` function.
 
-| Flag                   | Description                                |
-|------------------------|--------------------------------------------|
-| `initialising`         | `true` if the algorithm is initialising.   |
-| `angularRateRecovery`  | `true` if angular rate recovery is active. |
-| `accelerationRecovery` | `true` if acceleration recovery is active. |
-| `magneticRecovery`     | `true` if a magnetic recovery is active.   |
+| Flag                   | Description                          |
+|------------------------|--------------------------------------|
+| `startup`              | `true` during algorithm startup.     |
+| `angularRateRecovery`  | `true` during angular rate recovery. |
+| `accelerationRecovery` | `true` during acceleration recovery. |
+| `magneticRecovery`     | `true` during magnetic recovery.     |
 
 ## Bias algorithm
 
-The bias algorithm provides run-time estimation of the gyroscope offset to compensate for variations in temperature and fine-tune existing offset calibration that may already be in place. This algorithm should be used in conjunction with the AHRS algorithm to achieve best performance.
+The bias algorithm provides run-time estimation of the gyroscope offset to compensate for variations in temperature and fine-tune existing offset calibration that may already be in place. This algorithm may be used to improve gyroscope measurements before providing them to the AHRS algorithm.
 
-The algorithm calculates the gyroscope offset by detecting the stationary periods that occur naturally in most applications. Gyroscope measurements are sampled during these periods and low-pass filtered to obtain the gyroscope offset. The algorithm requires that gyroscope measurements do not exceed +/-3 degrees per second while stationary. Basic gyroscope offset calibration may be necessary to ensure that the initial offset plus measurement noise is within these bounds.
+The algorithm estimates the gyroscope offset by identifying the stationary periods that occur naturally in many applications. Stationary periods are detected as the gyroscope measurement remaining below a threshold for a period of time. The gyroscope offset is then updated using a high-pass filter with a very low cutoff frequency.
+
+### Settings
+
+The bias algorithm settings are defined by the `FusionBiasSettings` structure and are configured using the `FusionBiasSetSettings` function.
+
+| Setting               | Description                                                                                      |
+|-----------------------|--------------------------------------------------------------------------------------------------|
+| `sampleRate`          | Sample rate in Hz. The default value is 100 Hz.                                                  |
+| `stationaryThreshold` | Stationary detection threshold in degrees per second. The default value is 3 degrees per second. |
+| `stationaryThresholds` | Optional per-axis stationary detection thresholds in degrees per second. A zero axis uses `stationaryThreshold`. |
+| `stationaryPeriod`    | Stationary detection period in seconds. The default value is 3 seconds.                          |
+
+### Non-volatile memory
+
+The run-time estimate of the gyroscope offset may be saved to and restored from non-volatile memory to avoid re-estimation after each power cycle. This is supported by the `FusionBiasGetOffset` and `FusionBiasSetOffset` functions.
 
 ## Sensor models
 
